@@ -301,6 +301,21 @@ export default function AimTrainerApp() {
             sniperState.elapsed += dt;
             item.mesh.position.x += Math.sin(sniperState.elapsed * 1.6 + sniperState.phase) * dt * 1.7;
             item.mesh.position.y += Math.cos(sniperState.elapsed * 1.35 + sniperState.phase) * dt * 1.1;
+
+            // Recalculate the safe movement box from the live camera FOV.
+            // This is important while scoped because the zoomed viewport is
+            // much narrower than the normal camera view.
+            const sniperDistance = Math.max(1, camera.position.z - item.mesh.position.z);
+            const sniperHalfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * sniperDistance;
+            const sniperHalfWidth = sniperHalfHeight * camera.aspect;
+            const sniperMargin = item.baseScale * 0.62 + 0.35;
+            const safeMinX = camera.position.x - sniperHalfWidth + sniperMargin;
+            const safeMaxX = camera.position.x + sniperHalfWidth - sniperMargin;
+            const safeMinY = camera.position.y - sniperHalfHeight + sniperMargin;
+            const safeMaxY = camera.position.y + sniperHalfHeight - sniperMargin;
+            item.mesh.position.x = THREE.MathUtils.clamp(item.mesh.position.x, safeMinX, safeMaxX);
+            item.mesh.position.y = THREE.MathUtils.clamp(item.mesh.position.y, safeMinY, safeMaxY);
+
             // Targets are completely cloaked until the player holds right-click.
             // Once scoped, the moving target is revealed for the shot.
             const shouldHide = !scopedRef.current;
