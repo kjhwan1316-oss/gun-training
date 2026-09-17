@@ -383,13 +383,14 @@ export default function AimTrainerApp() {
       const baseScale = 2.55;
       sprite.scale.set(baseScale, baseScale, 1);
 
-      // Elevated shooting gallery height (y: 1.8 to 6.5)
-      const minX = -8.5;
-      const maxX = 8.5;
-      const minY = 1.8;
-      const maxY = 6.2;
-      const minZ = -36;
-      const maxZ = -22;
+      // Expanded launch volume: each target locks its x/y position and flies
+      // straight toward the player on the z-axis with no lateral drift.
+      const minX = -12.5;
+      const maxX = 12.5;
+      const minY = 0.8;
+      const maxY = 8.2;
+      const minZ = -54;
+      const maxZ = -20;
 
       const posX = minX + Math.random() * (maxX - minX);
       const posY = minY + Math.random() * (maxY - minY);
