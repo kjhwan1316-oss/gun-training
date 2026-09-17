@@ -59,6 +59,9 @@ export default function AimTrainerApp() {
   const [recoilTimeLeft, setRecoilTimeLeft] = useState<number>(30);
   const [recoilControl, setRecoilControl] = useState<number>(100);
   const [recoilOffset, setRecoilOffset] = useState({ x: 0, y: 0 });
+  const [recoilSpread, setRecoilSpread] = useState<number>(5);
+  const [recoilShots, setRecoilShots] = useState<number>(0);
+  const [recoilFiring, setRecoilFiring] = useState<boolean>(false);
 
   // Sniper Mode Stats
   const [sniperTimeLeft, setSniperTimeLeft] = useState<number>(30);
@@ -92,6 +95,8 @@ export default function AimTrainerApp() {
   const scopeUpdateAtRef = useRef<number>(0);
   const recoilOffsetRef = useRef({ x: 0, y: 0 });
   const recoilTelemetryAtRef = useRef<number>(0);
+  const recoilFiringRef = useRef<boolean>(false);
+  const recoilLastShotAtRef = useRef<number>(0);
 
   // Internal Three.js Game Engine Refs
   const engineRef = useRef<{
@@ -298,12 +303,24 @@ export default function AimTrainerApp() {
         camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
         camera.updateProjectionMatrix();
         if (activeModeRef.current === "RECOIL") {
-          const t = currentTime / 1000;
-          const offset = {
-            x: Math.sin(t * 5.1) * 48 + Math.sin(t * 10.7) * 16,
-            y: Math.abs(Math.sin(t * 4.3)) * 66 + Math.sin(t * 8.4) * 12,
-          };
-          recoilOffsetRef.current = offset;
+          const recoil = recoilOffsetRef.current;
+          if (recoilFiringRef.current) {
+            // Each automatic shot adds a vertical kick plus a noisy horizontal
+            // drift, similar to a sustained rifle spray.
+            if (currentTime - recoilLastShotAtRef.current >= 86) {
+              recoilLastShotAtRef.current = currentTime;
+              recoil.x += (Math.random() - 0.5) * 7.5;
+              recoil.y += 7.5 + Math.random() * 3.5;
+              setRecoilShots((shots) => shots + 1);
+              soundFX.playLaserShoot();
+            }
+            recoil.x += Math.sin(currentTime / 82) * dt * 4.5;
+          } else {
+            // Let the weapon settle when the trigger is released.
+            recoil.x *= Math.max(0, 1 - dt * 4.5);
+            recoil.y *= Math.max(0, 1 - dt * 3.2);
+          }
+          const offset = { x: recoil.x, y: recoil.y };
           const centerX = window.innerWidth / 2;
           const centerY = window.innerHeight / 2;
           const controlledX = aimCursorRef.current.x + offset.x;
@@ -312,6 +329,7 @@ export default function AimTrainerApp() {
           if (currentTime - recoilTelemetryAtRef.current > 90) {
             recoilTelemetryAtRef.current = currentTime;
             setRecoilOffset(offset);
+            setRecoilSpread(Math.min(54, 5 + Math.hypot(offset.x, offset.y) * 0.28));
             setRecoilControl(Math.max(0, Math.min(100, Math.round(100 - error / 2.4))));
           }
         }
@@ -652,6 +670,11 @@ export default function AimTrainerApp() {
     setRecoilTimeLeft(30);
     setRecoilControl(100);
     setRecoilOffset({ x: 0, y: 0 });
+    setRecoilSpread(5);
+    setRecoilShots(0);
+    setRecoilFiring(false);
+    recoilFiringRef.current = false;
+    recoilLastShotAtRef.current = performance.now();
     recoilOffsetRef.current = { x: 0, y: 0 };
     const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     aimCursorRef.current = center;
@@ -782,6 +805,11 @@ export default function AimTrainerApp() {
 
     if (!isPlaying) return;
     if (currentMode === "SNIPER" && !scopedRef.current) return;
+    if (currentMode === "RECOIL") {
+      recoilFiringRef.current = true;
+      setRecoilFiring(true);
+      return;
+    }
 
     if (currentMode === "AIM" || currentMode === "SNIPER") {
       soundFX.playLaserShoot();
@@ -922,6 +950,10 @@ export default function AimTrainerApp() {
 
   const handleContainerMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     setCursorDown(false);
+    if (currentMode === "RECOIL") {
+      recoilFiringRef.current = false;
+      setRecoilFiring(false);
+    }
     if (e.button === 2) {
       scopedRef.current = false;
       setIsScoped(false);
@@ -1309,6 +1341,11 @@ export default function AimTrainerApp() {
               <div className="text-[10px] font-mono text-cyan-300 tracking-wider">CONTROL</div>
               <div className="text-4xl font-black text-cyan-300">{recoilControl}%</div>
             </div>
+            <div className="w-[1px] h-10 bg-amber-500/30" />
+            <div className="text-center">
+              <div className="text-[10px] font-mono text-pink-300 tracking-wider">ROUNDS</div>
+              <div className="text-4xl font-black text-pink-300">{recoilShots}</div>
+            </div>
           </div>
 
           <div className="absolute left-1/2 top-1/2 w-28 h-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/80 shadow-[0_0_22px_rgba(52,211,153,0.5)]">
@@ -1320,8 +1357,27 @@ export default function AimTrainerApp() {
             className="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300 shadow-[0_0_18px_#f59e0b]"
             style={{ left: cursorPos.x + recoilOffset.x, top: cursorPos.y + recoilOffset.y }}
           />
+          {Array.from({ length: 12 }).map((_, index) => {
+            const angle = (index / 12) * Math.PI * 2;
+            const distance = recoilSpread * (0.45 + (index % 3) * 0.25);
+            return (
+              <div
+                key={index}
+                className={`absolute w-1.5 h-1.5 rounded-full ${recoilFiring ? "bg-red-400 shadow-[0_0_8px_#fb7185]" : "bg-amber-300/40"}`}
+                style={{
+                  left: cursorPos.x + recoilOffset.x + Math.cos(angle) * distance,
+                  top: cursorPos.y + recoilOffset.y + Math.sin(angle) * distance,
+                }}
+              />
+            );
+          })}
+          {recoilFiring && (
+            <div className="absolute left-1/2 top-[calc(50%+82px)] -translate-x-1/2 text-[10px] font-mono tracking-[0.3em] text-red-300 animate-pulse">
+              AUTO FIRE · SPRAY ACTIVE
+            </div>
+          )}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-slate-950/75 border border-amber-500/30 text-xs font-mono text-amber-100">
-            반동 방향의 반대로 마우스를 움직여 조준점을 초록 영역에 유지하세요
+            마우스를 누르고 있는 동안 발사됩니다 · 반동의 반대로 움직여 탄착군을 초록 영역에 유지하세요
           </div>
         </div>
       )}
@@ -1504,6 +1560,10 @@ export default function AimTrainerApp() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-400">훈련 시간</span>
                     <span className="font-bold text-cyan-300 text-lg">30초</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">발사한 탄환</span>
+                    <span className="font-bold text-pink-300 text-lg">{recoilShots}발</span>
                   </div>
                   <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-800">
                     <span className="text-slate-400">제어 등급</span>
