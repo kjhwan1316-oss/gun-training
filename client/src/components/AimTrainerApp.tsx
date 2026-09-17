@@ -127,7 +127,8 @@ export default function AimTrainerApp() {
 
     // 2. Camera: balanced height and view angle
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    camera.position.set(0, 3.2, 7.0);
+    // Pull the camera back slightly so the safe arrival frustum is wider.
+    camera.position.set(0, 3.2, 14.0);
     camera.lookAt(0, 3.2, -25);
 
     // 3. Renderer
@@ -281,7 +282,7 @@ export default function AimTrainerApp() {
           const s = item.baseScale * pulse;
           item.mesh.scale.set(s, s, 1);
 
-          const dist = 7.0 - item.mesh.position.z;
+          const dist = 14.0 - item.mesh.position.z;
           if (dist < minDistanceToPlayer) {
             minDistanceToPlayer = dist;
           }
@@ -383,12 +384,23 @@ export default function AimTrainerApp() {
       const baseScale = 2.55;
       sprite.scale.set(baseScale, baseScale, 1);
 
-      // Expanded launch volume: each target locks its x/y position and flies
-      // straight toward the player on the z-axis with no lateral drift.
-      const minX = -12.5;
-      const maxX = 12.5;
-      const minY = 0.8;
-      const maxY = 8.2;
+      // Camera-safe launch volume: each target locks its x/y position and flies
+      // straight toward the player on the z-axis with no lateral drift. The
+      // range is calculated from the camera frustum so the full sprite remains
+      // visible even at the breach line.
+      const safeZ = 4.0;
+      const distanceToCamera = engine.camera.position.z - safeZ;
+      const halfHeightAtSafeZ = Math.tan(THREE.MathUtils.degToRad(engine.camera.fov / 2)) * distanceToCamera;
+      const halfWidthAtSafeZ = halfHeightAtSafeZ * engine.camera.aspect;
+      const targetHalfSize = baseScale / 2;
+      const viewportMargin = 0.35;
+      const safeX = Math.max(0.8, halfWidthAtSafeZ - targetHalfSize - viewportMargin);
+      const safeYMin = engine.camera.position.y - halfHeightAtSafeZ + targetHalfSize + viewportMargin;
+      const safeYMax = engine.camera.position.y + halfHeightAtSafeZ - targetHalfSize - viewportMargin;
+      const minX = -safeX;
+      const maxX = safeX;
+      const minY = Math.max(0.8, safeYMin);
+      const maxY = Math.max(minY + 0.4, safeYMax);
       const minZ = -54;
       const maxZ = -20;
 
