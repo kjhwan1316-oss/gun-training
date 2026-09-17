@@ -80,6 +80,8 @@ export default function AimTrainerApp() {
   // Crosshair laser mouse position
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [cursorDown, setCursorDown] = useState(false);
+  const aimCursorRef = useRef({ x: -100, y: -100 });
+  const lastMouseRef = useRef({ x: -100, y: -100 });
   const activeModeRef = useRef<GameMode | null>(null);
   const scopedRef = useRef<boolean>(false);
   const scopeUpdateAtRef = useRef<number>(0);
@@ -283,6 +285,9 @@ export default function AimTrainerApp() {
 
       const engine = engineRef.current;
       if (engine) {
+        const targetFov = scopedRef.current ? 34 : 60;
+        camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
+        camera.updateProjectionMatrix();
         // Update active targets
         let minDistanceToPlayer = 100;
         for (let i = engine.targets.length - 1; i >= 0; i--) {
@@ -665,12 +670,18 @@ export default function AimTrainerApp() {
   // Mouse & Shooting Interactions
   // -------------------------------------------------------------
   const handleContainerMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    setCursorPos({ x: e.clientX, y: e.clientY });
+    const previous = lastMouseRef.current;
+    const sensitivity = scopedRef.current ? 0.42 : 1;
+    const nextX = scopedRef.current ? previous.x + (e.clientX - previous.x) * sensitivity : e.clientX;
+    const nextY = scopedRef.current ? previous.y + (e.clientY - previous.y) * sensitivity : e.clientY;
+    lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    aimCursorRef.current = { x: nextX, y: nextY };
+    setCursorPos({ x: nextX, y: nextY });
 
     const engine = engineRef.current;
     if (!engine) return;
-    engine.mouseRay.x = (e.clientX / window.innerWidth) * 2 - 1;
-    engine.mouseRay.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    engine.mouseRay.x = (nextX / window.innerWidth) * 2 - 1;
+    engine.mouseRay.y = -(nextY / window.innerHeight) * 2 + 1;
   };
 
   const handleContainerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -683,6 +694,7 @@ export default function AimTrainerApp() {
     setCursorDown(true);
 
     if (!isPlaying) return;
+    if (currentMode === "SNIPER" && !scopedRef.current) return;
 
     if (currentMode === "AIM" || currentMode === "SNIPER") {
       soundFX.playLaserShoot();
@@ -695,7 +707,16 @@ export default function AimTrainerApp() {
       if (!engine) return;
 
       engine.raycaster.setFromCamera(engine.mouseRay, engine.camera);
-      const meshes = engine.targets.filter((t) => t.mesh.visible).map((t) => t.mesh);
+      const aimPoint = aimCursorRef.current;
+      const scopeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.32;
+      const isInsideScope = (mesh: THREE.Sprite) => {
+        if (currentMode !== "SNIPER") return true;
+        const projected = mesh.position.clone().project(engine.camera);
+        const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
+        const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+        return Math.hypot(aimPoint.x - screenX, aimPoint.y - screenY) <= scopeRadius;
+      };
+      const meshes = engine.targets.filter((t) => t.mesh.visible && isInsideScope(t.mesh)).map((t) => t.mesh);
       const intersects = engine.raycaster.intersectObjects(meshes);
 
       // Sprite raycasts can become overly strict at long distance. Add a
@@ -712,11 +733,12 @@ export default function AimTrainerApp() {
 
           const targetScreenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
           const targetScreenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
-          const pixelDistance = Math.hypot(e.clientX - targetScreenX, e.clientY - targetScreenY);
+          const pixelDistance = Math.hypot(aimPoint.x - targetScreenX, aimPoint.y - targetScreenY);
           const cameraDistance = engine.camera.position.distanceTo(target.mesh.position);
           const hitRadius = Math.max(26, Math.min(78, 88 - cameraDistance * 0.85));
 
-          if (pixelDistance <= hitRadius && pixelDistance < closestPixelDistance) {
+          const insideScope = currentMode !== "SNIPER" || pixelDistance <= scopeRadius;
+          if (insideScope && pixelDistance <= hitRadius && pixelDistance < closestPixelDistance) {
             closestTarget = target.mesh;
             closestPixelDistance = pixelDistance;
           }
@@ -845,12 +867,12 @@ export default function AimTrainerApp() {
           <div
             className="absolute inset-0"
             style={{
-              background: "radial-gradient(circle at center, transparent 0 31%, rgba(2,3,11,0.42) 32%, rgba(2,3,11,0.82) 70%)",
+              background: `radial-gradient(circle at ${cursorPos.x}px ${cursorPos.y}px, transparent 0 31%, rgba(2,3,11,0.42) 32%, rgba(2,3,11,0.82) 70%)`,
             }}
           />
           <div className="absolute inset-0 border-[18px] border-black/70" />
-          <div className="absolute left-1/2 top-1/2 w-[min(64vw,64vh)] h-[min(64vw,64vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-violet-300/80 shadow-[0_0_0_9999px_rgba(2,3,11,0.26),0_0_24px_rgba(167,139,250,0.8)]" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-violet-200/80 text-xs font-mono tracking-[0.35em]">
+          <div className="absolute w-[min(64vw,64vh)] h-[min(64vw,64vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-violet-300/80 shadow-[0_0_0_9999px_rgba(2,3,11,0.26),0_0_24px_rgba(167,139,250,0.8)]" style={{ left: cursorPos.x, top: cursorPos.y }} />
+          <div className="absolute -translate-x-1/2 -translate-y-1/2 text-violet-200/80 text-xs font-mono tracking-[0.35em]" style={{ left: cursorPos.x, top: cursorPos.y }}>
             SCOPE ACTIVE
           </div>
           {scopeMarkers.map((marker) => (
