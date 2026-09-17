@@ -304,10 +304,10 @@ export default function AimTrainerApp() {
             // Targets are completely cloaked until the player holds right-click.
             // Once scoped, the moving target is revealed for the shot.
             const shouldHide = !scopedRef.current;
-            if (shouldHide !== sniperState.hidden) {
-              sniperState.hidden = shouldHide;
-              item.mesh.visible = !shouldHide;
-            }
+            sniperState.hidden = shouldHide;
+            // Always sync the render visibility because a target can spawn
+            // while unscoped with the same hidden-state value already set.
+            item.mesh.visible = !shouldHide;
             if (shouldHide) continue;
           }
           // Approach camera
