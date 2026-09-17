@@ -323,7 +323,7 @@ export default function AimTrainerApp() {
             const projectedTarget = item.mesh.position.clone().project(camera);
             const targetScreenX = (projectedTarget.x * 0.5 + 0.5) * window.innerWidth;
             const targetScreenY = (-projectedTarget.y * 0.5 + 0.5) * window.innerHeight;
-            const scopeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.24;
+            const scopeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.16;
             const insideAimArea = Math.hypot(aimCursorRef.current.x - targetScreenX, aimCursorRef.current.y - targetScreenY) <= scopeRadius;
             const shouldHide = !scopedRef.current || !insideAimArea;
             sniperState.hidden = shouldHide;
@@ -733,7 +733,7 @@ export default function AimTrainerApp() {
 
       engine.raycaster.setFromCamera(engine.mouseRay, engine.camera);
       const aimPoint = aimCursorRef.current;
-      const scopeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.24;
+      const scopeRadius = Math.min(window.innerWidth, window.innerHeight) * 0.16;
       const isInsideScope = (mesh: THREE.Sprite) => {
         if (currentMode !== "SNIPER") return true;
         const projected = mesh.position.clone().project(engine.camera);
@@ -892,11 +892,11 @@ export default function AimTrainerApp() {
           <div
             className="absolute inset-0"
             style={{
-              background: `radial-gradient(circle at ${cursorPos.x}px ${cursorPos.y}px, transparent 0 23%, rgba(2,3,11,0.42) 24%, rgba(2,3,11,0.82) 58%)`,
+              background: `radial-gradient(circle at ${cursorPos.x}px ${cursorPos.y}px, transparent 0 15%, rgba(2,3,11,0.42) 16%, rgba(2,3,11,0.82) 47%)`,
             }}
           />
           <div className="absolute inset-0 border-[18px] border-black/70" />
-          <div className="absolute w-[min(48vw,48vh)] h-[min(48vw,48vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-violet-300/80 shadow-[0_0_0_9999px_rgba(2,3,11,0.26),0_0_24px_rgba(167,139,250,0.8)]" style={{ left: cursorPos.x, top: cursorPos.y }} />
+          <div className="absolute w-[min(32vw,32vh)] h-[min(32vw,32vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-violet-300/80 shadow-[0_0_0_9999px_rgba(2,3,11,0.26),0_0_24px_rgba(167,139,250,0.8)]" style={{ left: cursorPos.x, top: cursorPos.y }} />
           <div className="absolute -translate-x-1/2 -translate-y-1/2 text-violet-200/80 text-xs font-mono tracking-[0.35em]" style={{ left: cursorPos.x, top: cursorPos.y }}>
             SCOPE ACTIVE
           </div>
