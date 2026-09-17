@@ -123,7 +123,7 @@ export default function AimTrainerApp() {
     // 1. Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x04050d);
-    scene.fog = new THREE.FogExp2(0x060714, 0.012);
+    scene.fog = new THREE.FogExp2(0x060714, 0.006);
 
     // 2. Camera: balanced height and view angle
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
@@ -142,18 +142,21 @@ export default function AimTrainerApp() {
     const textureLoader = new THREE.TextureLoader();
     const bgTexture = textureLoader.load("/manus-storage/arena_bg_35240ab8.png");
     bgTexture.colorSpace = THREE.SRGBColorSpace;
-    const targetTexture = textureLoader.load("/manus-storage/target_orb_c183098c.png");
+    const targetTexture = textureLoader.load("/manus-storage/target_orb_sharp_8fcd78d3.png");
     targetTexture.colorSpace = THREE.SRGBColorSpace;
+    targetTexture.magFilter = THREE.LinearFilter;
+    targetTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    targetTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
     // Arena backdrop plane far behind
-    const bgPlaneGeo = new THREE.PlaneGeometry(130, 75);
+    const bgPlaneGeo = new THREE.PlaneGeometry(150, 95);
     const bgPlaneMat = new THREE.MeshBasicMaterial({
       map: bgTexture,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
     });
     const bgPlane = new THREE.Mesh(bgPlaneGeo, bgPlaneMat);
-    bgPlane.position.set(0, 10, -50);
+    bgPlane.position.set(0, 4, -50);
     scene.add(bgPlane);
 
     // 5. Lighting
@@ -178,7 +181,7 @@ export default function AimTrainerApp() {
     const floorMat = new THREE.MeshBasicMaterial({
       color: 0x020308,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.18,
     });
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
@@ -377,7 +380,7 @@ export default function AimTrainerApp() {
       const sprite = new THREE.Sprite(spriteMat);
       
       // Prominent target size (2.8 units)
-      const baseScale = 2.8;
+      const baseScale = 2.55;
       sprite.scale.set(baseScale, baseScale, 1);
 
       // Elevated shooting gallery height (y: 1.8 to 6.5)

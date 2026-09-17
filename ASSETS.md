@@ -6,5 +6,5 @@
 |---|---|---|
 | Visual Reference | /home/ubuntu/webdev-static-assets/aim-trainer/reference.png | Generated via built-in image generator |
 | Arena Backdrop | /manus-storage/arena_bg_35240ab8.png | /home/ubuntu/webdev-static-assets/aim-trainer/arena_bg.png |
-| Target Orb | /manus-storage/target_orb_c183098c.png | /home/ubuntu/webdev-static-assets/aim-trainer/target_orb.png |
+| Target Orb (sharp) | /manus-storage/target_orb_sharp_8fcd78d3.png | /home/ubuntu/webdev-static-assets/aim-trainer/target_orb_sharp.png |
 | Click Reactor Core | /manus-storage/click_core_c60c52c3.png | /home/ubuntu/webdev-static-assets/aim-trainer/click_core.png |
