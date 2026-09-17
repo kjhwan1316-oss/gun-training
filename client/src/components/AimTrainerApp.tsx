@@ -313,13 +313,13 @@ export default function AimTrainerApp() {
               const shotIndex = recoilShotIndexRef.current++;
               // Softer kick with alternating directional bias so the spray
               // can drift up, down, left, and right instead of only climbing.
-              recoil.x += Math.cos(shotIndex * 1.45) * 2.2 + (Math.random() - 0.5) * 3.6;
-              recoil.y += Math.sin(shotIndex * 1.15) * 2.5 + (Math.random() - 0.5) * 3.2;
+              recoil.x += Math.cos(shotIndex * 1.45) * 3.2 + (Math.random() - 0.5) * 5.2;
+              recoil.y += Math.sin(shotIndex * 1.15) * 3.6 + (Math.random() - 0.5) * 4.7;
               setRecoilShots((shots) => shots + 1);
               soundFX.playLaserShoot();
             }
-            recoil.x += Math.sin(currentTime / 82) * dt * 1.8;
-            recoil.y += Math.cos(currentTime / 97) * dt * 1.4;
+            recoil.x += Math.sin(currentTime / 82) * dt * 2.6;
+            recoil.y += Math.cos(currentTime / 97) * dt * 2.1;
           } else {
             // Let the weapon settle when the trigger is released.
             recoil.x *= Math.max(0, 1 - dt * 4.5);
