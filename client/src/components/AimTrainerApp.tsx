@@ -555,9 +555,34 @@ export default function AimTrainerApp() {
       const meshes = engine.targets.map((t) => t.mesh);
       const intersects = engine.raycaster.intersectObjects(meshes);
 
-      if (intersects.length > 0) {
+      // Sprite raycasts can become overly strict at long distance. Add a
+      // forgiving screen-space check so a click on the visible target still
+      // counts even when the 3D ray misses the transparent edge pixels.
+      let hitTarget = intersects.length > 0 ? intersects[0].object as THREE.Sprite : null;
+      if (!hitTarget) {
+        let closestTarget: THREE.Sprite | null = null;
+        let closestPixelDistance = Number.POSITIVE_INFINITY;
+        for (const target of engine.targets) {
+          const projected = target.mesh.position.clone().project(engine.camera);
+          if (projected.z < -1 || projected.z > 1) continue;
+
+          const targetScreenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
+          const targetScreenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+          const pixelDistance = Math.hypot(e.clientX - targetScreenX, e.clientY - targetScreenY);
+          const cameraDistance = engine.camera.position.distanceTo(target.mesh.position);
+          const hitRadius = Math.max(26, Math.min(78, 88 - cameraDistance * 0.85));
+
+          if (pixelDistance <= hitRadius && pixelDistance < closestPixelDistance) {
+            closestTarget = target.mesh;
+            closestPixelDistance = pixelDistance;
+          }
+        }
+        hitTarget = closestTarget;
+      }
+
+      if (hitTarget) {
         // Target hit!
-        const hitSprite = intersects[0].object as THREE.Sprite;
+        const hitSprite = hitTarget;
         const hitPos = hitSprite.position.clone();
 
         spawnHitSparks(hitPos);
