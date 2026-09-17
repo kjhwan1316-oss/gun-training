@@ -18,7 +18,7 @@ import {
   Maximize2
 } from "lucide-react";
 
-type GameMode = "AIM" | "CLICK";
+type GameMode = "AIM" | "CLICK" | "SNIPER";
 type Difficulty = "EASY" | "NORMAL" | "HARD";
 
 interface HighScores {
@@ -55,6 +55,13 @@ export default function AimTrainerApp() {
   const [clickPeakCPS, setClickPeakCPS] = useState<number>(0);
   const [clickScale, setClickScale] = useState<number>(1);
 
+  // Sniper Mode Stats
+  const [sniperTimeLeft, setSniperTimeLeft] = useState<number>(30);
+  const [sniperKills, setSniperKills] = useState<number>(0);
+  const [sniperShots, setSniperShots] = useState<number>(0);
+  const [isScoped, setIsScoped] = useState<boolean>(false);
+  const [scopeMarkers, setScopeMarkers] = useState<Array<{ id: number; x: number; y: number; hidden: boolean }>>([]);
+
   // Game Over Modal State
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [gameOverReason, setGameOverReason] = useState<string>("");
@@ -73,6 +80,9 @@ export default function AimTrainerApp() {
   // Crosshair laser mouse position
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [cursorDown, setCursorDown] = useState(false);
+  const activeModeRef = useRef<GameMode | null>(null);
+  const scopedRef = useRef<boolean>(false);
+  const scopeUpdateAtRef = useRef<number>(0);
 
   // Internal Three.js Game Engine Refs
   const engineRef = useRef<{
@@ -238,6 +248,8 @@ export default function AimTrainerApp() {
       setTimeout(() => startAimMode(), 150);
     } else if (modeParam === "click") {
       setTimeout(() => startClickMode(), 150);
+    } else if (modeParam === "sniper") {
+      setTimeout(() => startSniperMode(), 150);
     } else if (modeParam === "gameover") {
       setTimeout(() => {
         setCurrentMode("AIM");
@@ -275,8 +287,26 @@ export default function AimTrainerApp() {
         let minDistanceToPlayer = 100;
         for (let i = engine.targets.length - 1; i >= 0; i--) {
           const item = engine.targets[i];
+          if (activeModeRef.current === "SNIPER") {
+            const sniperState = item.mesh.userData as {
+              phase: number;
+              elapsed: number;
+              hidden: boolean;
+            };
+            sniperState.elapsed += dt;
+            item.mesh.position.x += Math.sin(sniperState.elapsed * 1.6 + sniperState.phase) * dt * 1.7;
+            item.mesh.position.y += Math.cos(sniperState.elapsed * 1.35 + sniperState.phase) * dt * 1.1;
+            const shouldHide = !scopedRef.current && Math.floor(sniperState.elapsed / 1.8) % 4 === 3;
+            if (shouldHide !== sniperState.hidden) {
+              sniperState.hidden = shouldHide;
+              item.mesh.visible = !shouldHide;
+            }
+            if (shouldHide) continue;
+          }
           // Approach camera
-          item.mesh.position.z += item.speed * dt * 60;
+          if (activeModeRef.current !== "SNIPER") {
+            item.mesh.position.z += item.speed * dt * 60;
+          }
           // Pulse scale subtly
           const pulse = 1 + Math.sin(currentTime * 0.008 + item.pulseOffset) * 0.1;
           const s = item.baseScale * pulse;
@@ -296,6 +326,20 @@ export default function AimTrainerApp() {
           }
         }
         setClosestEnemyDist(Math.max(0, parseFloat(minDistanceToPlayer.toFixed(1))));
+
+        if (activeModeRef.current === "SNIPER" && scopedRef.current && currentTime - scopeUpdateAtRef.current > 100) {
+          scopeUpdateAtRef.current = currentTime;
+          const markers = engine.targets.map((target) => {
+            const projected = target.mesh.position.clone().project(engine.camera);
+            return {
+              id: target.id,
+              x: (projected.x * 0.5 + 0.5) * window.innerWidth,
+              y: (-projected.y * 0.5 + 0.5) * window.innerHeight,
+              hidden: !target.mesh.visible,
+            };
+          });
+          setScopeMarkers(markers);
+        }
 
         // Update Particle Sparks
         const posAttr = engine.particles.geometry.attributes.position;
@@ -422,6 +466,53 @@ export default function AimTrainerApp() {
     }
   };
 
+  const spawnSniperTarget = () => {
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    clearTargets();
+    const spriteMat = new THREE.SpriteMaterial({
+      map: engine.targetTexture,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      opacity: 1,
+    });
+    const sprite = new THREE.Sprite(spriteMat);
+    const baseScale = 2.35;
+    sprite.scale.set(baseScale, baseScale, 1);
+
+    // Random position inside the camera-safe frustum. The target moves on
+    // screen but never travels outside this generous sniper practice area.
+    const safeZ = -16;
+    const distanceToCamera = engine.camera.position.z - safeZ;
+    const halfHeight = Math.tan(THREE.MathUtils.degToRad(engine.camera.fov / 2)) * distanceToCamera;
+    const halfWidth = halfHeight * engine.camera.aspect;
+    const margin = baseScale / 2 + 0.7;
+    const safeX = Math.max(1, halfWidth - margin);
+    const safeYMin = engine.camera.position.y - halfHeight + margin;
+    const safeYMax = engine.camera.position.y + halfHeight - margin;
+
+    sprite.position.set(
+      THREE.MathUtils.randFloat(-safeX, safeX),
+      THREE.MathUtils.randFloat(Math.max(1, safeYMin), Math.max(safeYMin + 0.5, safeYMax)),
+      safeZ,
+    );
+    sprite.userData = {
+      phase: Math.random() * Math.PI * 2,
+      elapsed: 0,
+      hidden: false,
+    };
+    engine.scene.add(sprite);
+    engine.targets.push({
+      mesh: sprite,
+      speed: 0,
+      hp: 1,
+      id: Date.now() + Math.random(),
+      pulseOffset: Math.random() * 10,
+      baseScale,
+    });
+  };
+
   // Clear 3D active targets
   const clearTargets = () => {
     const engine = engineRef.current;
@@ -437,6 +528,10 @@ export default function AimTrainerApp() {
   // -------------------------------------------------------------
   const startAimMode = () => {
     clearTargets();
+    activeModeRef.current = "AIM";
+    scopedRef.current = false;
+    setIsScoped(false);
+    setScopeMarkers([]);
     setCurrentMode("AIM");
     setIsPlaying(true);
     setIsGameOver(false);
@@ -455,6 +550,10 @@ export default function AimTrainerApp() {
 
   const startClickMode = () => {
     clearTargets();
+    activeModeRef.current = "CLICK";
+    scopedRef.current = false;
+    setIsScoped(false);
+    setScopeMarkers([]);
     setCurrentMode("CLICK");
     setIsPlaying(true);
     setIsGameOver(false);
@@ -465,9 +564,28 @@ export default function AimTrainerApp() {
     setClickPeakCPS(0);
   };
 
+  const startSniperMode = () => {
+    activeModeRef.current = "SNIPER";
+    scopedRef.current = false;
+    setIsScoped(false);
+    setScopeMarkers([]);
+    setCurrentMode("SNIPER");
+    setIsPlaying(true);
+    setIsGameOver(false);
+    setGameOverReason("");
+    setSniperTimeLeft(30);
+    setSniperKills(0);
+    setSniperShots(0);
+    spawnSniperTarget();
+  };
+
   // Trigger Game Over
   const triggerGameOver = (reason: string) => {
     setIsPlaying(false);
+    activeModeRef.current = null;
+    scopedRef.current = false;
+    setIsScoped(false);
+    setScopeMarkers([]);
     setIsGameOver(true);
     setGameOverReason(reason);
     soundFX.playFanfare(false);
@@ -489,28 +607,42 @@ export default function AimTrainerApp() {
     }
   };
 
-  // Click Mode Timer Tick
+  // Click and sniper countdown timers
   useEffect(() => {
-    if (!isPlaying || currentMode !== "CLICK") return;
+    if (!isPlaying || (currentMode !== "CLICK" && currentMode !== "SNIPER")) return;
 
     const timer = setInterval(() => {
-      setClickTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsPlaying(false);
-          setIsGameOver(true);
-          setGameOverReason("10초 제한 시간이 종료되었습니다!");
-          soundFX.playFanfare(true);
-          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-          return 0;
-        }
-        if (prev <= 4) {
-          soundFX.playTick(true);
-        } else {
-          soundFX.playTick(false);
-        }
-        return prev - 1;
-      });
+      if (currentMode === "SNIPER") {
+        setSniperTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIsPlaying(false);
+            setIsGameOver(true);
+            activeModeRef.current = null;
+            setGameOverReason("30초 저격 훈련 시간이 종료되었습니다!");
+            soundFX.playFanfare(true);
+            confetti({ particleCount: 160, spread: 80, origin: { y: 0.6 } });
+            return 0;
+          }
+          prev <= 4 ? soundFX.playTick(true) : soundFX.playTick(false);
+          return prev - 1;
+        });
+      } else {
+        setClickTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIsPlaying(false);
+            setIsGameOver(true);
+            activeModeRef.current = null;
+            setGameOverReason("10초 제한 시간이 종료되었습니다!");
+            soundFX.playFanfare(true);
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            return 0;
+          }
+          prev <= 4 ? soundFX.playTick(true) : soundFX.playTick(false);
+          return prev - 1;
+        });
+      }
     }, 1000);
 
     return () => clearInterval(timer);
@@ -539,20 +671,28 @@ export default function AimTrainerApp() {
   };
 
   const handleContainerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 2 && currentMode === "SNIPER" && isPlaying) {
+      scopedRef.current = true;
+      setIsScoped(true);
+      return;
+    }
     if (e.button !== 0) return;
     setCursorDown(true);
 
     if (!isPlaying) return;
 
-    if (currentMode === "AIM") {
+    if (currentMode === "AIM" || currentMode === "SNIPER") {
       soundFX.playLaserShoot();
       setAimShots((s) => s + 1);
+      if (currentMode === "SNIPER") {
+        setSniperShots((s) => s + 1);
+      }
 
       const engine = engineRef.current;
       if (!engine) return;
 
       engine.raycaster.setFromCamera(engine.mouseRay, engine.camera);
-      const meshes = engine.targets.map((t) => t.mesh);
+      const meshes = engine.targets.filter((t) => t.mesh.visible).map((t) => t.mesh);
       const intersects = engine.raycaster.intersectObjects(meshes);
 
       // Sprite raycasts can become overly strict at long distance. Add a
@@ -563,6 +703,7 @@ export default function AimTrainerApp() {
         let closestTarget: THREE.Sprite | null = null;
         let closestPixelDistance = Number.POSITIVE_INFINITY;
         for (const target of engine.targets) {
+          if (!target.mesh.visible) continue;
           const projected = target.mesh.position.clone().project(engine.camera);
           if (projected.z < -1 || projected.z > 1) continue;
 
@@ -590,6 +731,27 @@ export default function AimTrainerApp() {
         // Remove from scene & targets list
         engine.scene.remove(hitSprite);
         engine.targets = engine.targets.filter((t) => t.mesh !== hitSprite);
+
+        if (currentMode === "SNIPER") {
+          setSniperKills((kills) => {
+            const nextKills = kills + 1;
+            if (nextKills % 5 === 0) {
+              confetti({
+                particleCount: 45,
+                spread: 55,
+                origin: { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight },
+              });
+            }
+            return nextKills;
+          });
+          soundFX.playTargetHit(sniperKills + 1);
+          setTimeout(() => {
+            if (activeModeRef.current === "SNIPER" && isPlaying) {
+              spawnSniperTarget();
+            }
+          }, 220);
+          return;
+        }
 
         // Update stats
         setAimHits((h) => h + 1);
@@ -646,8 +808,13 @@ export default function AimTrainerApp() {
     }
   };
 
-  const handleContainerMouseUp = () => {
+  const handleContainerMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     setCursorDown(false);
+    if (e.button === 2) {
+      scopedRef.current = false;
+      setIsScoped(false);
+      setScopeMarkers([]);
+    }
   };
 
   const toggleSound = () => {
@@ -669,6 +836,35 @@ export default function AimTrainerApp() {
     >
       {/* 3D WebGL Canvas Layer */}
       <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />
+
+      {isScoped && currentMode === "SNIPER" && (
+        <div className="fixed inset-0 z-40 pointer-events-none">
+          <div
+            className="absolute inset-0"
+            style={{
+              background: "radial-gradient(circle at center, transparent 0 31%, rgba(2,3,11,0.42) 32%, rgba(2,3,11,0.82) 70%)",
+            }}
+          />
+          <div className="absolute inset-0 border-[18px] border-black/70" />
+          <div className="absolute left-1/2 top-1/2 w-[min(64vw,64vh)] h-[min(64vw,64vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-violet-300/80 shadow-[0_0_0_9999px_rgba(2,3,11,0.26),0_0_24px_rgba(167,139,250,0.8)]" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-violet-200/80 text-xs font-mono tracking-[0.35em]">
+            SCOPE ACTIVE
+          </div>
+          {scopeMarkers.map((marker) => (
+            <div
+              key={marker.id}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 ${
+                marker.hidden ? "border-amber-300 border-dashed animate-pulse" : "border-red-400 shadow-[0_0_18px_#ff3355]"
+              }`}
+              style={{ left: marker.x, top: marker.y }}
+            >
+              <span className={`absolute top-12 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-mono ${marker.hidden ? "text-amber-200" : "text-red-200"}`}>
+                {marker.hidden ? "CLOAKED" : "TARGET"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Cyber Grid Overlay Scanline Texture */}
       <div
@@ -755,7 +951,7 @@ export default function AimTrainerApp() {
       {/* ========================================================= */}
       {!isPlaying && !isGameOver && (
         <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
-          <div className="relative w-full max-w-2xl p-8 rounded-2xl bg-slate-950/80 border border-cyan-500/40 shadow-[0_0_50px_rgba(0,240,255,0.25)] flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-4xl p-8 rounded-2xl bg-slate-950/80 border border-cyan-500/40 shadow-[0_0_50px_rgba(0,240,255,0.25)] flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200">
             {/* Header Banner */}
             <div className="text-center space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-xs font-mono text-cyan-300">
@@ -770,7 +966,7 @@ export default function AimTrainerApp() {
             </div>
 
             {/* Mode Selection Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {/* Aim Mode Button Card */}
               <div
                 onClick={startAimMode}
@@ -822,6 +1018,33 @@ export default function AimTrainerApp() {
                 <div className="mt-auto pt-3 border-t border-pink-500/20 flex items-center justify-between text-xs text-pink-300/80 font-mono">
                   <span>최다 클릭: {highScores.clickCount}회</span>
                   <span>{highScores.clickCPS} CPS</span>
+                </div>
+              </div>
+
+              {/* Sniper Practice Mode Button Card */}
+              <div
+                onClick={startSniperMode}
+                className="group relative cursor-pointer p-5 rounded-xl bg-gradient-to-br from-violet-950/50 to-slate-900/60 border border-violet-500/30 hover:border-violet-300 hover:shadow-[0_0_30px_rgba(139,92,246,0.4)] transition-all flex flex-col gap-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-lg bg-violet-500/20 text-violet-300 group-hover:scale-110 transition-transform">
+                    <Crosshair className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-700/50">
+                    30 SEC SNIPER
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
+                    ◉ 저격 은폐 타겟
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    이동·은폐하는 과녁을 30초 안에 처리하세요. 적중할 때마다 위치가 랜덤으로 바뀝니다.
+                  </p>
+                </div>
+                <div className="mt-auto pt-3 border-t border-violet-500/20 flex items-center justify-between text-xs text-violet-300/80 font-mono">
+                  <span>랜덤 스폰</span>
+                  <span>이동 + 은폐</span>
                 </div>
               </div>
             </div>
@@ -933,7 +1156,39 @@ export default function AimTrainerApp() {
       )}
 
       {/* ========================================================= */}
-      {/* 3. IN-GAME HUD - CLICK CPS MODE */}
+      {/* 3. IN-GAME HUD - SNIPER MODE */}
+      {/* ========================================================= */}
+      {isPlaying && currentMode === "SNIPER" && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-between p-6 pt-24 pointer-events-none">
+          <div className="p-4 rounded-xl bg-slate-950/88 backdrop-blur-md border border-violet-400/50 shadow-[0_0_24px_rgba(139,92,246,0.3)] flex items-center gap-8">
+            <div className="text-center">
+              <div className="text-[10px] font-mono text-violet-300 tracking-wider">SNIPER TIMER</div>
+              <div className={`text-4xl font-black ${sniperTimeLeft <= 5 ? "text-red-400 animate-pulse" : "text-white"}`}>
+                {sniperTimeLeft}s
+              </div>
+            </div>
+            <div className="w-[1px] h-10 bg-violet-500/30" />
+            <div className="text-center">
+              <div className="text-[10px] font-mono text-cyan-300 tracking-wider">TARGETS DOWN</div>
+              <div className="text-4xl font-black text-cyan-300 drop-shadow-[0_0_10px_#00f0ff]">{sniperKills}</div>
+            </div>
+            <div className="w-[1px] h-10 bg-violet-500/30" />
+            <div className="text-center">
+              <div className="text-[10px] font-mono text-amber-300 tracking-wider">SHOT ACCURACY</div>
+              <div className="text-4xl font-black text-amber-300">
+                {sniperShots > 0 ? ((sniperKills / sniperShots) * 100).toFixed(0) : "100"}%
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6 px-4 py-2 rounded-lg bg-slate-950/75 border border-violet-500/30 text-xs font-mono text-violet-200">
+            은폐 중인 과녁은 잠시 사라집니다 · 한 발 명중 시 다음 위치로 재배치
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4. IN-GAME HUD - CLICK CPS MODE */}
       {/* ========================================================= */}
       {isPlaying && currentMode === "CLICK" && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-between p-8 pt-24 pointer-events-none">
@@ -1046,6 +1301,29 @@ export default function AimTrainerApp() {
                     <span className="font-black text-white text-xl">{aimScore.toLocaleString()} pts</span>
                   </div>
                 </>
+              ) : currentMode === "SNIPER" ? (
+                <>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">처리한 은폐 과녁</span>
+                    <span className="font-bold text-violet-300 text-lg">{sniperKills}개</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">총 발사 수</span>
+                    <span className="font-bold text-cyan-300 text-lg">{sniperShots}발</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">저격 명중률</span>
+                    <span className="font-bold text-pink-300 text-lg">
+                      {sniperShots > 0 ? ((sniperKills / sniperShots) * 100).toFixed(1) : "100.0"}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-800">
+                    <span className="text-slate-400">훈련 판정</span>
+                    <span className="font-black text-amber-300 text-lg">
+                      {sniperKills >= 15 ? "ELITE SNIPER" : sniperKills >= 8 ? "SHARPSHOOTER" : "RECRUIT"}
+                    </span>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="flex justify-between items-center text-sm">
@@ -1081,7 +1359,7 @@ export default function AimTrainerApp() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={currentMode === "AIM" ? startAimMode : startClickMode}
+                onClick={currentMode === "AIM" ? startAimMode : currentMode === "SNIPER" ? startSniperMode : startClickMode}
                 className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-bold text-sm flex items-center justify-center gap-2 hover:shadow-[0_0_20px_#00f0ff] transition-all"
               >
                 <RotateCcw className="w-4 h-4" /> 다시 도전
@@ -1089,6 +1367,7 @@ export default function AimTrainerApp() {
               <button
                 onClick={() => {
                   setIsGameOver(false);
+                  activeModeRef.current = null;
                   setCurrentMode(null);
                   clearTargets();
                 }}
