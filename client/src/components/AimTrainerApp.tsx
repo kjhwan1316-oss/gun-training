@@ -310,16 +310,16 @@ export default function AimTrainerApp() {
             // drift, similar to a sustained rifle spray.
             if (currentTime - recoilLastShotAtRef.current >= 86) {
               recoilLastShotAtRef.current = currentTime;
-              const shotIndex = recoilShotIndexRef.current++;
-              // Softer kick with alternating directional bias so the spray
-              // can drift up, down, left, and right instead of only climbing.
-              recoil.x += Math.cos(shotIndex * 1.45) * 3.2 + (Math.random() - 0.5) * 5.2;
-              recoil.y += Math.sin(shotIndex * 1.15) * 3.6 + (Math.random() - 0.5) * 4.7;
+              recoilShotIndexRef.current += 1;
+              // Every round chooses a fresh angle and kick size, so the spray
+              // can jump up, down, left, or right rather than following a loop.
+              const randomAngle = Math.random() * Math.PI * 2;
+              const randomKick = 3.2 + Math.random() * 4.8;
+              recoil.x += Math.cos(randomAngle) * randomKick;
+              recoil.y += Math.sin(randomAngle) * randomKick;
               setRecoilShots((shots) => shots + 1);
               soundFX.playLaserShoot();
             }
-            recoil.x += Math.sin(currentTime / 82) * dt * 2.6;
-            recoil.y += Math.cos(currentTime / 97) * dt * 2.1;
           } else {
             // Let the weapon settle when the trigger is released.
             recoil.x *= Math.max(0, 1 - dt * 4.5);
