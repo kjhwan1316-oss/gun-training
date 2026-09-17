@@ -97,6 +97,7 @@ export default function AimTrainerApp() {
   const recoilTelemetryAtRef = useRef<number>(0);
   const recoilFiringRef = useRef<boolean>(false);
   const recoilLastShotAtRef = useRef<number>(0);
+  const recoilShotIndexRef = useRef<number>(0);
 
   // Internal Three.js Game Engine Refs
   const engineRef = useRef<{
@@ -309,12 +310,16 @@ export default function AimTrainerApp() {
             // drift, similar to a sustained rifle spray.
             if (currentTime - recoilLastShotAtRef.current >= 86) {
               recoilLastShotAtRef.current = currentTime;
-              recoil.x += (Math.random() - 0.5) * 7.5;
-              recoil.y += 7.5 + Math.random() * 3.5;
+              const shotIndex = recoilShotIndexRef.current++;
+              // Softer kick with alternating directional bias so the spray
+              // can drift up, down, left, and right instead of only climbing.
+              recoil.x += Math.cos(shotIndex * 1.45) * 2.2 + (Math.random() - 0.5) * 3.6;
+              recoil.y += Math.sin(shotIndex * 1.15) * 2.5 + (Math.random() - 0.5) * 3.2;
               setRecoilShots((shots) => shots + 1);
               soundFX.playLaserShoot();
             }
-            recoil.x += Math.sin(currentTime / 82) * dt * 4.5;
+            recoil.x += Math.sin(currentTime / 82) * dt * 1.8;
+            recoil.y += Math.cos(currentTime / 97) * dt * 1.4;
           } else {
             // Let the weapon settle when the trigger is released.
             recoil.x *= Math.max(0, 1 - dt * 4.5);
@@ -675,6 +680,7 @@ export default function AimTrainerApp() {
     setRecoilFiring(false);
     recoilFiringRef.current = false;
     recoilLastShotAtRef.current = performance.now();
+    recoilShotIndexRef.current = 0;
     recoilOffsetRef.current = { x: 0, y: 0 };
     const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     aimCursorRef.current = center;
