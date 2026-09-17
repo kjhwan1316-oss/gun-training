@@ -18,7 +18,7 @@ import {
   Maximize2
 } from "lucide-react";
 
-type GameMode = "AIM" | "CLICK" | "SNIPER";
+type GameMode = "AIM" | "CLICK" | "SNIPER" | "RECOIL";
 type Difficulty = "EASY" | "NORMAL" | "HARD";
 
 interface HighScores {
@@ -55,6 +55,11 @@ export default function AimTrainerApp() {
   const [clickPeakCPS, setClickPeakCPS] = useState<number>(0);
   const [clickScale, setClickScale] = useState<number>(1);
 
+  // Recoil Control Mode Stats
+  const [recoilTimeLeft, setRecoilTimeLeft] = useState<number>(30);
+  const [recoilControl, setRecoilControl] = useState<number>(100);
+  const [recoilOffset, setRecoilOffset] = useState({ x: 0, y: 0 });
+
   // Sniper Mode Stats
   const [sniperTimeLeft, setSniperTimeLeft] = useState<number>(30);
   const [sniperKills, setSniperKills] = useState<number>(0);
@@ -85,6 +90,8 @@ export default function AimTrainerApp() {
   const activeModeRef = useRef<GameMode | null>(null);
   const scopedRef = useRef<boolean>(false);
   const scopeUpdateAtRef = useRef<number>(0);
+  const recoilOffsetRef = useRef({ x: 0, y: 0 });
+  const recoilTelemetryAtRef = useRef<number>(0);
 
   // Internal Three.js Game Engine Refs
   const engineRef = useRef<{
@@ -252,6 +259,8 @@ export default function AimTrainerApp() {
       setTimeout(() => startClickMode(), 150);
     } else if (modeParam === "sniper") {
       setTimeout(() => startSniperMode(), 150);
+    } else if (modeParam === "recoil") {
+      setTimeout(() => startRecoilMode(), 150);
     } else if (modeParam === "gameover") {
       setTimeout(() => {
         setCurrentMode("AIM");
@@ -288,6 +297,24 @@ export default function AimTrainerApp() {
         const targetFov = scopedRef.current ? 34 : 60;
         camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
         camera.updateProjectionMatrix();
+        if (activeModeRef.current === "RECOIL") {
+          const t = currentTime / 1000;
+          const offset = {
+            x: Math.sin(t * 5.1) * 48 + Math.sin(t * 10.7) * 16,
+            y: Math.abs(Math.sin(t * 4.3)) * 66 + Math.sin(t * 8.4) * 12,
+          };
+          recoilOffsetRef.current = offset;
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          const controlledX = aimCursorRef.current.x + offset.x;
+          const controlledY = aimCursorRef.current.y + offset.y;
+          const error = Math.hypot(controlledX - centerX, controlledY - centerY);
+          if (currentTime - recoilTelemetryAtRef.current > 90) {
+            recoilTelemetryAtRef.current = currentTime;
+            setRecoilOffset(offset);
+            setRecoilControl(Math.max(0, Math.min(100, Math.round(100 - error / 2.4))));
+          }
+        }
         // Update active targets
         let minDistanceToPlayer = 100;
         for (let i = engine.targets.length - 1; i >= 0; i--) {
@@ -612,6 +639,26 @@ export default function AimTrainerApp() {
     spawnSniperTarget();
   };
 
+  const startRecoilMode = () => {
+    clearTargets();
+    activeModeRef.current = "RECOIL";
+    scopedRef.current = false;
+    setIsScoped(false);
+    setScopeMarkers([]);
+    setCurrentMode("RECOIL");
+    setIsPlaying(true);
+    setIsGameOver(false);
+    setGameOverReason("");
+    setRecoilTimeLeft(30);
+    setRecoilControl(100);
+    setRecoilOffset({ x: 0, y: 0 });
+    recoilOffsetRef.current = { x: 0, y: 0 };
+    const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    aimCursorRef.current = center;
+    lastMouseRef.current = center;
+    setCursorPos(center);
+  };
+
   // Trigger Game Over
   const triggerGameOver = (reason: string) => {
     setIsPlaying(false);
@@ -640,12 +687,27 @@ export default function AimTrainerApp() {
     }
   };
 
-  // Click and sniper countdown timers
+  // Click, sniper, and recoil countdown timers
   useEffect(() => {
-    if (!isPlaying || (currentMode !== "CLICK" && currentMode !== "SNIPER")) return;
+    if (!isPlaying || (currentMode !== "CLICK" && currentMode !== "SNIPER" && currentMode !== "RECOIL")) return;
 
     const timer = setInterval(() => {
-      if (currentMode === "SNIPER") {
+      if (currentMode === "RECOIL") {
+        setRecoilTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIsPlaying(false);
+            setIsGameOver(true);
+            activeModeRef.current = null;
+            setGameOverReason("30초 반동제어 훈련이 종료되었습니다!");
+            soundFX.playFanfare(true);
+            confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
+            return 0;
+          }
+          prev <= 4 ? soundFX.playTick(true) : soundFX.playTick(false);
+          return prev - 1;
+        });
+      } else if (currentMode === "SNIPER") {
         setSniperTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
@@ -1097,6 +1159,33 @@ export default function AimTrainerApp() {
                   <span>이동 + 은폐</span>
                 </div>
               </div>
+
+              {/* Recoil Control Mode Button Card */}
+              <div
+                onClick={startRecoilMode}
+                className="group relative cursor-pointer p-5 rounded-xl bg-gradient-to-br from-amber-950/50 to-slate-900/60 border border-amber-500/30 hover:border-amber-300 hover:shadow-[0_0_30px_rgba(245,158,11,0.35)] transition-all flex flex-col gap-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-lg bg-amber-500/20 text-amber-300 group-hover:scale-110 transition-transform">
+                    <Activity className="w-6 h-6" />
+                  </div>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-900/50 text-amber-300 border border-amber-700/50">
+                    30 SEC CONTROL
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
+                    ↕ 반동제어 훈련
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    자동으로 튀는 조준점을 마우스로 반대 방향 제어해 중앙 유지력을 훈련합니다.
+                  </p>
+                </div>
+                <div className="mt-auto pt-3 border-t border-amber-500/20 flex items-center justify-between text-xs text-amber-300/80 font-mono">
+                  <span>자동 반동 패턴</span>
+                  <span>중앙 유지</span>
+                </div>
+              </div>
             </div>
 
             {/* Difficulty Selector */}
@@ -1206,7 +1295,39 @@ export default function AimTrainerApp() {
       )}
 
       {/* ========================================================= */}
-      {/* 3. IN-GAME HUD - SNIPER MODE */}
+      {/* 3. IN-GAME HUD - RECOIL CONTROL MODE */}
+      {/* ========================================================= */}
+      {isPlaying && currentMode === "RECOIL" && (
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 p-4 rounded-xl bg-slate-950/88 backdrop-blur-md border border-amber-400/50 shadow-[0_0_24px_rgba(245,158,11,0.25)] flex items-center gap-8">
+            <div className="text-center">
+              <div className="text-[10px] font-mono text-amber-300 tracking-wider">TIME LEFT</div>
+              <div className={`text-4xl font-black ${recoilTimeLeft <= 5 ? "text-red-400 animate-pulse" : "text-white"}`}>{recoilTimeLeft}s</div>
+            </div>
+            <div className="w-[1px] h-10 bg-amber-500/30" />
+            <div className="text-center">
+              <div className="text-[10px] font-mono text-cyan-300 tracking-wider">CONTROL</div>
+              <div className="text-4xl font-black text-cyan-300">{recoilControl}%</div>
+            </div>
+          </div>
+
+          <div className="absolute left-1/2 top-1/2 w-28 h-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/80 shadow-[0_0_22px_rgba(52,211,153,0.5)]">
+            <div className="absolute inset-5 rounded-full border border-emerald-400/40" />
+            <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-mono text-emerald-200/80">KEEP CENTERED</span>
+          </div>
+
+          <div
+            className="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-300 shadow-[0_0_18px_#f59e0b]"
+            style={{ left: cursorPos.x + recoilOffset.x, top: cursorPos.y + recoilOffset.y }}
+          />
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-slate-950/75 border border-amber-500/30 text-xs font-mono text-amber-100">
+            반동 방향의 반대로 마우스를 움직여 조준점을 초록 영역에 유지하세요
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4. IN-GAME HUD - SNIPER MODE */}
       {/* ========================================================= */}
       {isPlaying && currentMode === "SNIPER" && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-between p-6 pt-24 pointer-events-none">
@@ -1374,6 +1495,23 @@ export default function AimTrainerApp() {
                     </span>
                   </div>
                 </>
+              ) : currentMode === "RECOIL" ? (
+                <>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">평균 반동 제어력</span>
+                    <span className="font-bold text-amber-300 text-lg">{recoilControl}%</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">훈련 시간</span>
+                    <span className="font-bold text-cyan-300 text-lg">30초</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-800">
+                    <span className="text-slate-400">제어 등급</span>
+                    <span className="font-black text-emerald-400 text-lg">
+                      {recoilControl >= 85 ? "STEADY HAND" : recoilControl >= 65 ? "CONTROLLED" : "NEEDS PRACTICE"}
+                    </span>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="flex justify-between items-center text-sm">
@@ -1409,7 +1547,7 @@ export default function AimTrainerApp() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={currentMode === "AIM" ? startAimMode : currentMode === "SNIPER" ? startSniperMode : startClickMode}
+                onClick={currentMode === "AIM" ? startAimMode : currentMode === "SNIPER" ? startSniperMode : currentMode === "RECOIL" ? startRecoilMode : startClickMode}
                 className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-bold text-sm flex items-center justify-center gap-2 hover:shadow-[0_0_20px_#00f0ff] transition-all"
               >
                 <RotateCcw className="w-4 h-4" /> 다시 도전
