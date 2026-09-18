@@ -1354,8 +1354,8 @@ export default function AimTrainerApp() {
             </div>
           </div>
 
-          <div className="absolute left-1/2 top-1/2 w-28 h-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/80 shadow-[0_0_22px_rgba(52,211,153,0.5)]">
-            <div className="absolute inset-5 rounded-full border border-emerald-400/40" />
+          <div className="absolute left-1/2 top-1/2 w-20 h-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/80 shadow-[0_0_18px_rgba(52,211,153,0.5)]">
+            <div className="absolute inset-3 rounded-full border border-emerald-400/40" />
             <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-mono text-emerald-200/80">KEEP CENTERED</span>
           </div>
 
