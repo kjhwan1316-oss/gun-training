@@ -1031,6 +1031,28 @@ export default function AimTrainerApp() {
 
   // Accuracy calculation
   const accuracy = aimShots > 0 ? ((aimHits / aimShots) * 100).toFixed(1) : "100.0";
+  const modeDescriptions = {
+    aim: difficulty === "EASY"
+      ? "큰 과녁과 느린 접근 속도로 기본 조준을 편하게 연습합니다."
+      : difficulty === "HARD"
+      ? "작은 과녁이 빠르게 밀려오고 웨이브 수가 많아 정밀 조준이 필요합니다."
+      : "접근하는 과녁을 안정적으로 추적하며 기본 에임을 다듬습니다.",
+    click: difficulty === "EASY"
+      ? "15초 동안 큰 중앙 코어를 여유 있게 클릭하며 반응 속도를 익힙니다."
+      : difficulty === "HARD"
+      ? "7초 동안 작아진 코어가 움직이는 순간을 놓치지 말고 연속 클릭하세요."
+      : "10초 동안 중앙 코어를 최대한 빠르게 클릭해 CPS를 측정합니다.",
+    sniper: difficulty === "EASY"
+      ? "40초 동안 크고 느린 은폐 과녁을 찾아 저격 감각을 익힙니다."
+      : difficulty === "HARD"
+      ? "20초 안에 작고 빠른 은폐 과녁을 조준경으로 포착해 처리하세요."
+      : "30초 동안 이동·은폐하는 과녁을 조준경으로 찾아 랜덤 위치에서 처리합니다.",
+    recoil: difficulty === "EASY"
+      ? "느린 연사와 약한 랜덤 반동으로 탄착군 제어의 기본을 익힙니다."
+      : difficulty === "HARD"
+      ? "빠른 연사와 강한 랜덤 반동을 끝까지 중앙에 붙잡아야 합니다."
+      : "랜덤하게 튀는 자동 연사 반동을 마우스로 보정해 중앙을 유지합니다.",
+  };
 
   return (
     <div
@@ -1234,7 +1256,7 @@ export default function AimTrainerApp() {
                     <Zap className="w-6 h-6" />
                   </div>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-pink-900/50 text-pink-300 border border-pink-700/50">
-                    10 SEC CPS
+                    {difficultySettings.clickSeconds} SEC CPS
                   </span>
                 </div>
                 <div>
@@ -1242,7 +1264,7 @@ export default function AimTrainerApp() {
                     ⚡ 초고속 연타 테스트
                   </h3>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    10초 동안 코어를 최대한 빠르게 클릭하여 초당 클릭 수(CPS)를 측정합니다.
+                    {modeDescriptions.click}
                   </p>
                 </div>
                 <div className="mt-auto pt-3 border-t border-pink-500/20 flex items-center justify-between text-xs text-pink-300/80 font-mono">
@@ -1261,7 +1283,7 @@ export default function AimTrainerApp() {
                     <Crosshair className="w-6 h-6" />
                   </div>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-violet-900/50 text-violet-300 border border-violet-700/50">
-                    30 SEC SNIPER
+                    {difficultySettings.sniperSeconds} SEC SNIPER
                   </span>
                 </div>
                 <div>
@@ -1269,7 +1291,7 @@ export default function AimTrainerApp() {
                     ◉ 저격 은폐 타겟
                   </h3>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    이동·은폐하는 과녁을 30초 안에 처리하세요. 적중할 때마다 위치가 랜덤으로 바뀝니다.
+                    {modeDescriptions.sniper}
                   </p>
                 </div>
                 <div className="mt-auto pt-3 border-t border-violet-500/20 flex items-center justify-between text-xs text-violet-300/80 font-mono">
@@ -1288,7 +1310,7 @@ export default function AimTrainerApp() {
                     <Activity className="w-6 h-6" />
                   </div>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-900/50 text-amber-300 border border-amber-700/50">
-                    30 SEC CONTROL
+                    {difficultySettings.sniperSeconds} SEC CONTROL
                   </span>
                 </div>
                 <div>
@@ -1296,7 +1318,7 @@ export default function AimTrainerApp() {
                     ↕ 반동제어 훈련
                   </h3>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    자동으로 튀는 조준점을 마우스로 반대 방향 제어해 중앙 유지력을 훈련합니다.
+                    {modeDescriptions.recoil}
                   </p>
                 </div>
                 <div className="mt-auto pt-3 border-t border-amber-500/20 flex items-center justify-between text-xs text-amber-300/80 font-mono">
