@@ -1035,13 +1035,17 @@ export default function AimTrainerApp() {
       {/* 3D WebGL Canvas Layer */}
       <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />
 
-      {!isPlaying && !isGameOver && difficulty === "HARD" && (
+      {!isPlaying && !isGameOver && (difficulty === "EASY" || difficulty === "HARD") && (
         <div
           className="absolute inset-0 z-[2] pointer-events-none mix-blend-screen animate-pulse"
           style={{
-            background: "radial-gradient(circle at center, transparent 28%, rgba(255, 24, 54, 0.08) 58%, rgba(170, 0, 18, 0.28) 100%)",
-            boxShadow: "inset 0 0 110px rgba(255, 28, 45, 0.62)",
-            animationDuration: "1.8s",
+            background: difficulty === "HARD"
+              ? "radial-gradient(circle at center, transparent 24%, rgba(255, 20, 42, 0.18) 56%, rgba(190, 0, 20, 0.58) 100%)"
+              : "radial-gradient(circle at center, transparent 24%, rgba(34, 197, 94, 0.12) 56%, rgba(0, 110, 55, 0.42) 100%)",
+            boxShadow: difficulty === "HARD"
+              ? "inset 0 0 150px rgba(255, 20, 35, 0.9)"
+              : "inset 0 0 150px rgba(34, 197, 94, 0.62)",
+            animationDuration: difficulty === "HARD" ? "1.25s" : "2.4s",
           }}
         />
       )}
@@ -1160,7 +1164,15 @@ export default function AimTrainerApp() {
       {/* ========================================================= */}
       {!isPlaying && !isGameOver && (
         <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
-          <div className="relative w-full max-w-4xl p-8 rounded-2xl bg-slate-950/80 border border-cyan-500/40 shadow-[0_0_50px_rgba(0,240,255,0.25)] flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200">
+          <div
+            className={`relative w-full max-w-4xl p-8 rounded-2xl flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200 transition-colors duration-500 ${
+              difficulty === "HARD"
+                ? "bg-red-950/75 border border-red-400/75 shadow-[0_0_65px_rgba(239,68,68,0.52)]"
+                : difficulty === "EASY"
+                ? "bg-emerald-950/75 border border-emerald-400/70 shadow-[0_0_65px_rgba(34,197,94,0.42)]"
+                : "bg-slate-950/80 border border-cyan-500/40 shadow-[0_0_50px_rgba(0,240,255,0.25)]"
+            }`}
+          >
             {/* Header Banner */}
             <div className="text-center space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-xs font-mono text-cyan-300">
