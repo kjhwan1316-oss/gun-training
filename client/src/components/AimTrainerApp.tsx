@@ -1035,7 +1035,7 @@ export default function AimTrainerApp() {
       {/* 3D WebGL Canvas Layer */}
       <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />
 
-      {isPlaying && difficulty === "HARD" && (
+      {!isPlaying && !isGameOver && difficulty === "HARD" && (
         <div
           className="absolute inset-0 z-[2] pointer-events-none mix-blend-screen animate-pulse"
           style={{
