@@ -543,8 +543,8 @@ export default function AimTrainerApp() {
     if (!engine) return;
 
     // Difficulty multipliers
-    const speedMult = diff === "EASY" ? 0.05 : diff === "NORMAL" ? 0.08 : 0.12;
-    const waveCount = 3 + waveNum;
+    const speedMult = diff === "EASY" ? 0.05 : diff === "NORMAL" ? 0.08 : 0.17;
+    const waveCount = diff === "HARD" ? 4 + waveNum : 3 + waveNum;
 
     for (let i = 0; i < waveCount; i++) {
       const spriteMat = new THREE.SpriteMaterial({
@@ -555,7 +555,7 @@ export default function AimTrainerApp() {
       const sprite = new THREE.Sprite(spriteMat);
       
       // Prominent target size (2.8 units)
-      const baseScale = 2.55;
+      const baseScale = diff === "HARD" ? 2.05 : diff === "EASY" ? 2.85 : 2.55;
       sprite.scale.set(baseScale, baseScale, 1);
 
       // Camera-safe launch volume: each target locks its x/y position and flies
@@ -567,7 +567,7 @@ export default function AimTrainerApp() {
       const halfHeightAtSafeZ = Math.tan(THREE.MathUtils.degToRad(engine.camera.fov / 2)) * distanceToCamera;
       const halfWidthAtSafeZ = halfHeightAtSafeZ * engine.camera.aspect;
       const targetHalfSize = baseScale / 2;
-      const viewportMargin = 0.35;
+      const viewportMargin = diff === "HARD" ? 0.5 : 0.35;
       const safeX = Math.max(0.8, halfWidthAtSafeZ - targetHalfSize - viewportMargin);
       const safeYMin = engine.camera.position.y - halfHeightAtSafeZ + targetHalfSize + viewportMargin;
       const safeYMax = engine.camera.position.y + halfHeightAtSafeZ - targetHalfSize - viewportMargin;
