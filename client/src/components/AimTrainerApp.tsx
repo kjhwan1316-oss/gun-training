@@ -51,7 +51,7 @@ const DIFFICULTY_SETTINGS: Record<Difficulty, {
   HARD: {
     clickSeconds: 7,
     sniperSeconds: 20,
-    sniperSpeed: 1.35,
+    sniperSpeed: 1.7,
     sniperScale: 2.05,
     recoilInterval: 66,
     recoilMin: 7.4,
