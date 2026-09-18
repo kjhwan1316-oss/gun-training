@@ -301,6 +301,10 @@ export default function AimTrainerApp() {
     // Auto-check URL parameters for testing modes
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get("mode");
+    const difficultyParam = params.get("difficulty");
+    if (difficultyParam === "easy" || difficultyParam === "normal" || difficultyParam === "hard") {
+      setDifficulty(difficultyParam.toUpperCase() as Difficulty);
+    }
     if (modeParam === "aim") {
       setTimeout(() => startAimMode(), 150);
     } else if (modeParam === "click") {
@@ -1030,6 +1034,17 @@ export default function AimTrainerApp() {
     >
       {/* 3D WebGL Canvas Layer */}
       <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />
+
+      {isPlaying && difficulty === "HARD" && (
+        <div
+          className="absolute inset-0 z-[2] pointer-events-none mix-blend-screen animate-pulse"
+          style={{
+            background: "radial-gradient(circle at center, transparent 28%, rgba(255, 24, 54, 0.08) 58%, rgba(170, 0, 18, 0.28) 100%)",
+            boxShadow: "inset 0 0 110px rgba(255, 28, 45, 0.62)",
+            animationDuration: "1.8s",
+          }}
+        />
+      )}
 
       {isScoped && currentMode === "SNIPER" && (
         <div className="fixed inset-0 z-40 pointer-events-none">
