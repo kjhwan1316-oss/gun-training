@@ -21,6 +21,44 @@ import {
 type GameMode = "AIM" | "CLICK" | "SNIPER" | "RECOIL";
 type Difficulty = "EASY" | "NORMAL" | "HARD";
 
+const DIFFICULTY_SETTINGS: Record<Difficulty, {
+  clickSeconds: number;
+  sniperSeconds: number;
+  sniperSpeed: number;
+  sniperScale: number;
+  recoilInterval: number;
+  recoilMin: number;
+  recoilRange: number;
+}> = {
+  EASY: {
+    clickSeconds: 15,
+    sniperSeconds: 40,
+    sniperSpeed: 0.72,
+    sniperScale: 2.75,
+    recoilInterval: 112,
+    recoilMin: 3.2,
+    recoilRange: 4.8,
+  },
+  NORMAL: {
+    clickSeconds: 10,
+    sniperSeconds: 30,
+    sniperSpeed: 1,
+    sniperScale: 2.35,
+    recoilInterval: 86,
+    recoilMin: 5.2,
+    recoilRange: 7.4,
+  },
+  HARD: {
+    clickSeconds: 7,
+    sniperSeconds: 20,
+    sniperSpeed: 1.35,
+    sniperScale: 2.05,
+    recoilInterval: 66,
+    recoilMin: 7.4,
+    recoilRange: 10.6,
+  },
+};
+
 interface HighScores {
   aimKills: number;
   aimWave: number;
@@ -38,6 +76,7 @@ export default function AimTrainerApp() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("NORMAL");
   const [muted, setMuted] = useState<boolean>(false);
+  const difficultySettings = DIFFICULTY_SETTINGS[difficulty];
 
   // Aim Mode Stats
   const [aimScore, setAimScore] = useState<number>(0);
@@ -91,6 +130,7 @@ export default function AimTrainerApp() {
   const aimCursorRef = useRef({ x: -100, y: -100 });
   const lastMouseRef = useRef({ x: -100, y: -100 });
   const activeModeRef = useRef<GameMode | null>(null);
+  const difficultyRef = useRef<Difficulty>(difficulty);
   const scopedRef = useRef<boolean>(false);
   const scopeUpdateAtRef = useRef<number>(0);
   const recoilOffsetRef = useRef({ x: 0, y: 0 });
@@ -98,6 +138,8 @@ export default function AimTrainerApp() {
   const recoilFiringRef = useRef<boolean>(false);
   const recoilLastShotAtRef = useRef<number>(0);
   const recoilShotIndexRef = useRef<number>(0);
+
+  difficultyRef.current = difficulty;
 
   // Internal Three.js Game Engine Refs
   const engineRef = useRef<{
@@ -308,13 +350,14 @@ export default function AimTrainerApp() {
           if (recoilFiringRef.current) {
             // Each automatic shot adds a vertical kick plus a noisy horizontal
             // drift, similar to a sustained rifle spray.
-            if (currentTime - recoilLastShotAtRef.current >= 86) {
+            const activeDifficulty = DIFFICULTY_SETTINGS[difficultyRef.current];
+            if (currentTime - recoilLastShotAtRef.current >= activeDifficulty.recoilInterval) {
               recoilLastShotAtRef.current = currentTime;
               recoilShotIndexRef.current += 1;
               // Every round chooses a fresh angle and kick size, so the spray
               // can jump up, down, left, or right rather than following a loop.
               const randomAngle = Math.random() * Math.PI * 2;
-              const randomKick = 5.2 + Math.random() * 7.4;
+              const randomKick = activeDifficulty.recoilMin + Math.random() * activeDifficulty.recoilRange;
               recoil.x += Math.cos(randomAngle) * randomKick;
               recoil.y += Math.sin(randomAngle) * randomKick;
               setRecoilShots((shots) => shots + 1);
@@ -351,8 +394,9 @@ export default function AimTrainerApp() {
             sniperState.elapsed += dt;
             // Larger, faster sweep so the sniper target crosses a wider area
             // before returning, while the frustum clamp below keeps it safe.
-            item.mesh.position.x += Math.sin(sniperState.elapsed * 1.6 + sniperState.phase) * dt * 3.4;
-            item.mesh.position.y += Math.cos(sniperState.elapsed * 1.35 + sniperState.phase) * dt * 2.2;
+            const activeDifficulty = DIFFICULTY_SETTINGS[difficultyRef.current];
+            item.mesh.position.x += Math.sin(sniperState.elapsed * 1.6 + sniperState.phase) * dt * 3.4 * activeDifficulty.sniperSpeed;
+            item.mesh.position.y += Math.cos(sniperState.elapsed * 1.35 + sniperState.phase) * dt * 2.2 * activeDifficulty.sniperSpeed;
 
             // Recalculate the safe movement box from the live camera FOV.
             // This is important while scoped because the zoomed viewport is
@@ -560,7 +604,7 @@ export default function AimTrainerApp() {
       opacity: 1,
     });
     const sprite = new THREE.Sprite(spriteMat);
-    const baseScale = 2.35;
+    const baseScale = difficultySettings.sniperScale;
     sprite.scale.set(baseScale, baseScale, 1);
     sprite.visible = scopedRef.current;
 
@@ -643,7 +687,7 @@ export default function AimTrainerApp() {
     setGameOverReason("");
 
     setClickCount(0);
-    setClickTimeLeft(10);
+    setClickTimeLeft(difficultySettings.clickSeconds);
     setClickPeakCPS(0);
   };
 
@@ -656,7 +700,7 @@ export default function AimTrainerApp() {
     setIsPlaying(true);
     setIsGameOver(false);
     setGameOverReason("");
-    setSniperTimeLeft(30);
+    setSniperTimeLeft(difficultySettings.sniperSeconds);
     setSniperKills(0);
     setSniperShots(0);
     spawnSniperTarget();
@@ -672,7 +716,7 @@ export default function AimTrainerApp() {
     setIsPlaying(true);
     setIsGameOver(false);
     setGameOverReason("");
-    setRecoilTimeLeft(30);
+    setRecoilTimeLeft(difficultySettings.sniperSeconds);
     setRecoilControl(100);
     setRecoilOffset({ x: 0, y: 0 });
     setRecoilSpread(5);
