@@ -93,6 +93,7 @@ export default function AimTrainerApp() {
   const [clickTimeLeft, setClickTimeLeft] = useState<number>(10);
   const [clickPeakCPS, setClickPeakCPS] = useState<number>(0);
   const [clickScale, setClickScale] = useState<number>(1);
+  const [clickTargetPos, setClickTargetPos] = useState({ x: 50, y: 54 });
 
   // Recoil Control Mode Stats
   const [recoilTimeLeft, setRecoilTimeLeft] = useState<number>(30);
@@ -384,6 +385,13 @@ export default function AimTrainerApp() {
             setRecoilSpread(Math.min(78, 6 + Math.hypot(offset.x, offset.y) * 0.38));
             setRecoilControl(Math.max(0, Math.min(100, Math.round(100 - error / 2.4))));
           }
+        }
+        if (activeModeRef.current === "CLICK" && difficultyRef.current === "HARD") {
+          const t = currentTime / 1000;
+          setClickTargetPos({
+            x: 50 + Math.sin(t * 1.15) * 28 + Math.sin(t * 2.7) * 8,
+            y: 54 + Math.cos(t * 1.35) * 22 + Math.cos(t * 3.1) * 7,
+          });
         }
         // Update active targets
         let minDistanceToPlayer = 100;
@@ -693,6 +701,7 @@ export default function AimTrainerApp() {
     setClickCount(0);
     setClickTimeLeft(difficultySettings.clickSeconds);
     setClickPeakCPS(0);
+    setClickTargetPos({ x: 50, y: 54 });
   };
 
   const startSniperMode = () => {
@@ -1531,18 +1540,21 @@ export default function AimTrainerApp() {
           </div>
 
           {/* Central Interactive Power Core Button */}
-          <div className="my-auto pointer-events-auto flex flex-col items-center gap-4">
+          <div
+            className="absolute pointer-events-auto flex flex-col items-center gap-4"
+            style={{ left: `${clickTargetPos.x}%`, top: `${clickTargetPos.y}%`, transform: "translate(-50%, -50%)" }}
+          >
             <div
               className="relative cursor-pointer group transition-transform duration-75 select-none"
               style={{ transform: `scale(${clickScale})` }}
             >
               {/* Outer Energy Glow */}
-              <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 opacity-60 blur-xl group-hover:opacity-100 transition-opacity" />
+              <div className={`absolute ${difficulty === "HARD" ? "-inset-2" : "-inset-4"} rounded-full bg-gradient-to-r from-pink-500 to-purple-600 opacity-60 blur-xl group-hover:opacity-100 transition-opacity`} />
               {/* Image Core */}
               <img
                 src="/manus-storage/click_core_c60c52c3.png"
                 alt="Click Core"
-                className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-pink-400/80 shadow-[0_0_40px_rgba(255,0,128,0.6)] group-hover:scale-105 active:scale-95 transition-all"
+                className={`relative ${difficulty === "HARD" ? "w-32 h-32 sm:w-36 sm:h-36" : "w-48 h-48 sm:w-56 sm:h-56"} rounded-full border-2 border-pink-400/80 shadow-[0_0_40px_rgba(255,0,128,0.6)] group-hover:scale-105 active:scale-95 transition-all`}
                 draggable={false}
               />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
