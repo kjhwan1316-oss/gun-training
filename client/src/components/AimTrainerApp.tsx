@@ -314,7 +314,7 @@ export default function AimTrainerApp() {
               // Every round chooses a fresh angle and kick size, so the spray
               // can jump up, down, left, or right rather than following a loop.
               const randomAngle = Math.random() * Math.PI * 2;
-              const randomKick = 3.2 + Math.random() * 4.8;
+              const randomKick = 5.2 + Math.random() * 7.4;
               recoil.x += Math.cos(randomAngle) * randomKick;
               recoil.y += Math.sin(randomAngle) * randomKick;
               setRecoilShots((shots) => shots + 1);
@@ -334,7 +334,7 @@ export default function AimTrainerApp() {
           if (currentTime - recoilTelemetryAtRef.current > 90) {
             recoilTelemetryAtRef.current = currentTime;
             setRecoilOffset(offset);
-            setRecoilSpread(Math.min(54, 5 + Math.hypot(offset.x, offset.y) * 0.28));
+            setRecoilSpread(Math.min(78, 6 + Math.hypot(offset.x, offset.y) * 0.38));
             setRecoilControl(Math.max(0, Math.min(100, Math.round(100 - error / 2.4))));
           }
         }
