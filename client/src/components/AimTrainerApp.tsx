@@ -584,17 +584,19 @@ export default function AimTrainerApp() {
       const maxX = safeX;
       const minY = Math.max(0.8, safeYMin);
       const maxY = Math.max(minY + 0.4, safeYMax);
-      const minZ = -54;
-      const maxZ = -20;
+      // Keep each wave in a tight depth band so distant targets do not
+      // project directly behind nearer, enlarged targets.
+      const minZ = -42;
+      const maxZ = -34;
 
       let posX = minX + Math.random() * (maxX - minX);
       let posY = minY + Math.random() * (maxY - minY);
       let posZ = minZ + Math.random() * (maxZ - minZ);
-      const minimumSeparation = diff === "HARD" ? 3.1 : 2.7;
+      const minimumSeparation = diff === "HARD" ? 4.6 : 4.0;
       for (let attempt = 0; attempt < 24; attempt++) {
         const overlaps = occupiedSpawnPoints.some((point) =>
           Math.hypot(posX - point.x, posY - point.y) < minimumSeparation &&
-          Math.abs(posZ - point.z) < 8,
+          Math.abs(posZ - point.z) < 12,
         );
         if (!overlaps) break;
         posX = minX + Math.random() * (maxX - minX);
