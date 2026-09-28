@@ -94,6 +94,7 @@ export default function AimTrainerApp() {
   const [clickPeakCPS, setClickPeakCPS] = useState<number>(0);
   const [clickScale, setClickScale] = useState<number>(1);
   const [clickTargetPos, setClickTargetPos] = useState({ x: 50, y: 54 });
+  const clickCoreRef = useRef<HTMLDivElement | null>(null);
 
   // Recoil Control Mode Stats
   const [recoilTimeLeft, setRecoilTimeLeft] = useState<number>(30);
@@ -1012,6 +1013,11 @@ export default function AimTrainerApp() {
         setAimCombo(0);
       }
     } else if (currentMode === "CLICK") {
+      if (e.button !== 0) return;
+      const coreBounds = clickCoreRef.current?.getBoundingClientRect();
+      if (!coreBounds || e.clientX < coreBounds.left || e.clientX > coreBounds.right || e.clientY < coreBounds.top || e.clientY > coreBounds.bottom) {
+        return;
+      }
       soundFX.playCoreClick();
       setClickCount((c) => {
         const next = c + 1;
@@ -1582,6 +1588,7 @@ export default function AimTrainerApp() {
             style={{ left: `${clickTargetPos.x}%`, top: `${clickTargetPos.y}%`, transform: "translate(-50%, -50%)" }}
           >
             <div
+              ref={clickCoreRef}
               className="relative cursor-pointer group transition-transform duration-75 select-none"
               style={{ transform: `scale(${clickScale})` }}
             >
@@ -1607,7 +1614,7 @@ export default function AimTrainerApp() {
 
           {/* Bottom Tips */}
           <div className="text-xs font-mono text-slate-500">
-            화면의 아무 곳이나 클릭하거나 중앙 코어를 광속으로 연타하세요!
+            움직이는 코어 위를 정확히 클릭해 CPS를 올리세요!
           </div>
         </div>
       )}
