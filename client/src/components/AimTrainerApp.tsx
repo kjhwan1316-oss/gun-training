@@ -1145,17 +1145,17 @@ export default function AimTrainerApp() {
             transform: `translate(-50%, -50%) scale(${cursorDown ? 0.85 : 1})`,
           }}
         >
-          <div className="relative w-12 h-12 flex items-center justify-center">
+          <div className="relative w-7 h-7 flex items-center justify-center">
             {/* Outer rings */}
             <div className="absolute inset-0 rounded-full border border-cyan-400/70 animate-pulse shadow-[0_0_15px_#00f0ff]" />
-            <div className="absolute w-7 h-7 rounded-full border border-pink-500/80" />
+            <div className="absolute w-4 h-4 rounded-full border border-pink-500/80" />
             {/* Center dot */}
-            <div className="w-2 h-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#ffffff]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-300 shadow-[0_0_6px_#ffffff]" />
             {/* Cross ticks */}
-            <div className="absolute w-3.5 h-[2px] -left-1.5 bg-cyan-400 shadow-[0_0_6px_#00f0ff]" />
-            <div className="absolute w-3.5 h-[2px] -right-1.5 bg-cyan-400 shadow-[0_0_6px_#00f0ff]" />
-            <div className="absolute h-3.5 w-[2px] -top-1.5 bg-cyan-400 shadow-[0_0_6px_#00f0ff]" />
-            <div className="absolute h-3.5 w-[2px] -bottom-1.5 bg-cyan-400 shadow-[0_0_6px_#00f0ff]" />
+            <div className="absolute w-2 h-px -left-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
+            <div className="absolute w-2 h-px -right-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
+            <div className="absolute h-2 w-px -top-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
+            <div className="absolute h-2 w-px -bottom-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
           </div>
         </div>
       )}
