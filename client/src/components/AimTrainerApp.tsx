@@ -553,6 +553,7 @@ export default function AimTrainerApp() {
     // Difficulty multipliers
     const speedMult = diff === "EASY" ? 0.05 : diff === "NORMAL" ? 0.08 : 0.17;
     const waveCount = diff === "HARD" ? 4 + waveNum : 3 + waveNum;
+    const occupiedSpawnPoints: Array<{ x: number; y: number; z: number }> = [];
 
     for (let i = 0; i < waveCount; i++) {
       const spriteMat = new THREE.SpriteMaterial({
@@ -586,9 +587,21 @@ export default function AimTrainerApp() {
       const minZ = -54;
       const maxZ = -20;
 
-      const posX = minX + Math.random() * (maxX - minX);
-      const posY = minY + Math.random() * (maxY - minY);
-      const posZ = minZ + Math.random() * (maxZ - minZ);
+      let posX = minX + Math.random() * (maxX - minX);
+      let posY = minY + Math.random() * (maxY - minY);
+      let posZ = minZ + Math.random() * (maxZ - minZ);
+      const minimumSeparation = diff === "HARD" ? 3.1 : 2.7;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const overlaps = occupiedSpawnPoints.some((point) =>
+          Math.hypot(posX - point.x, posY - point.y) < minimumSeparation &&
+          Math.abs(posZ - point.z) < 8,
+        );
+        if (!overlaps) break;
+        posX = minX + Math.random() * (maxX - minX);
+        posY = minY + Math.random() * (maxY - minY);
+        posZ = minZ + Math.random() * (maxZ - minZ);
+      }
+      occupiedSpawnPoints.push({ x: posX, y: posY, z: posZ });
 
       sprite.position.set(posX, posY, posZ);
 
@@ -988,7 +1001,7 @@ export default function AimTrainerApp() {
               if (isPlaying) {
                 spawnWaveTargets(nextWave, difficulty);
               }
-            }, 350);
+            }, 650 + nextWave * 180);
             return nextWave;
           });
         }
