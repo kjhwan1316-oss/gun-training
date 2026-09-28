@@ -33,7 +33,7 @@ const DIFFICULTY_SETTINGS: Record<Difficulty, {
   EASY: {
     clickSeconds: 15,
     sniperSeconds: 40,
-    sniperSpeed: 0.72,
+    sniperSpeed: 0,
     sniperScale: 2.75,
     recoilInterval: 112,
     recoilMin: 3.2,
@@ -1043,7 +1043,7 @@ export default function AimTrainerApp() {
       ? "7초 동안 작아진 코어가 움직이는 순간을 놓치지 말고 연속 클릭하세요."
       : "10초 동안 중앙 코어를 최대한 빠르게 클릭해 CPS를 측정합니다.",
     sniper: difficulty === "EASY"
-      ? "40초 동안 크고 느린 은폐 과녁을 찾아 저격 감각을 익힙니다."
+      ? "40초 동안 움직이지 않는 고정 과녁을 찾아 조준경과 저격 감각을 익힙니다."
       : difficulty === "HARD"
       ? "20초 안에 작고 빠른 은폐 과녁을 조준경으로 포착해 처리하세요."
       : "30초 동안 이동·은폐하는 과녁을 조준경으로 찾아 랜덤 위치에서 처리합니다.",
