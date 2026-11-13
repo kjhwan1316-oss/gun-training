@@ -74,9 +74,11 @@ export default function AimTrainerApp() {
   // Game UI State
   const [currentMode, setCurrentMode] = useState<GameMode | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [startCountdown, setStartCountdown] = useState<number | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("NORMAL");
   const [muted, setMuted] = useState<boolean>(false);
   const difficultySettings = DIFFICULTY_SETTINGS[difficulty];
+  const pendingStartModeRef = useRef<GameMode | null>(null);
 
   // Aim Mode Stats
   const [aimScore, setAimScore] = useState<number>(0);
@@ -684,11 +686,13 @@ export default function AimTrainerApp() {
   const startAimMode = () => {
     clearTargets();
     activeModeRef.current = "AIM";
+    pendingStartModeRef.current = "AIM";
     scopedRef.current = false;
     setIsScoped(false);
     setScopeMarkers([]);
     setCurrentMode("AIM");
     setIsPlaying(true);
+    setStartCountdown(3);
     setIsGameOver(false);
     setGameOverReason("");
 
@@ -700,17 +704,18 @@ export default function AimTrainerApp() {
     setAimShots(0);
     setAimHits(0);
 
-    spawnWaveTargets(1, difficulty);
   };
 
   const startClickMode = () => {
     clearTargets();
     activeModeRef.current = "CLICK";
+    pendingStartModeRef.current = "CLICK";
     scopedRef.current = false;
     setIsScoped(false);
     setScopeMarkers([]);
     setCurrentMode("CLICK");
     setIsPlaying(true);
+    setStartCountdown(3);
     setIsGameOver(false);
     setGameOverReason("");
 
@@ -721,28 +726,32 @@ export default function AimTrainerApp() {
   };
 
   const startSniperMode = () => {
+    clearTargets();
     activeModeRef.current = "SNIPER";
+    pendingStartModeRef.current = "SNIPER";
     scopedRef.current = false;
     setIsScoped(false);
     setScopeMarkers([]);
     setCurrentMode("SNIPER");
     setIsPlaying(true);
+    setStartCountdown(3);
     setIsGameOver(false);
     setGameOverReason("");
     setSniperTimeLeft(difficultySettings.sniperSeconds);
     setSniperKills(0);
     setSniperShots(0);
-    spawnSniperTarget();
   };
 
   const startRecoilMode = () => {
     clearTargets();
     activeModeRef.current = "RECOIL";
+    pendingStartModeRef.current = "RECOIL";
     scopedRef.current = false;
     setIsScoped(false);
     setScopeMarkers([]);
     setCurrentMode("RECOIL");
     setIsPlaying(true);
+    setStartCountdown(3);
     setIsGameOver(false);
     setGameOverReason("");
     setRecoilTimeLeft(difficultySettings.sniperSeconds);
@@ -760,6 +769,24 @@ export default function AimTrainerApp() {
     lastMouseRef.current = center;
     setCursorPos(center);
   };
+
+  useEffect(() => {
+    if (startCountdown === null) return;
+    if (startCountdown === 0) {
+      const mode = pendingStartModeRef.current;
+      setStartCountdown(null);
+      if (mode === "AIM") spawnWaveTargets(1, difficulty);
+      if (mode === "SNIPER") spawnSniperTarget();
+      soundFX.playTick(true);
+      return;
+    }
+
+    soundFX.playTick(false);
+    const timer = window.setTimeout(() => {
+      setStartCountdown((value) => (value === null ? null : value - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [startCountdown]);
 
   // Trigger Game Over
   const triggerGameOver = (reason: string) => {
@@ -791,7 +818,7 @@ export default function AimTrainerApp() {
 
   // Click, sniper, and recoil countdown timers
   useEffect(() => {
-    if (!isPlaying || (currentMode !== "CLICK" && currentMode !== "SNIPER" && currentMode !== "RECOIL")) return;
+    if (!isPlaying || startCountdown !== null || (currentMode !== "CLICK" && currentMode !== "SNIPER" && currentMode !== "RECOIL")) return;
 
     const timer = setInterval(() => {
       if (currentMode === "RECOIL") {
@@ -843,7 +870,7 @@ export default function AimTrainerApp() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPlaying, currentMode]);
+  }, [isPlaying, currentMode, startCountdown]);
 
   // Click Mode Update High Scores on finish
   useEffect(() => {
@@ -882,7 +909,7 @@ export default function AimTrainerApp() {
     if (e.button !== 0) return;
     setCursorDown(true);
 
-    if (!isPlaying) return;
+    if (!isPlaying || startCountdown !== null) return;
     if (currentMode === "SNIPER" && !scopedRef.current) return;
     if (currentMode === "RECOIL") {
       recoilFiringRef.current = true;
@@ -1162,6 +1189,18 @@ export default function AimTrainerApp() {
             <div className="absolute w-2 h-px -right-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
             <div className="absolute h-2 w-px -top-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
             <div className="absolute h-2 w-px -bottom-0.5 bg-cyan-400 shadow-[0_0_5px_#00f0ff]" />
+          </div>
+        </div>
+      )}
+
+      {isPlaying && startCountdown !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 backdrop-blur-[2px] pointer-events-auto">
+          <div className="text-center">
+            <div className="text-xs font-mono tracking-[0.45em] text-cyan-300 mb-3">GET READY</div>
+            <div className="text-8xl sm:text-9xl font-black text-white drop-shadow-[0_0_28px_rgba(0,240,255,0.9)] animate-pulse">
+              {startCountdown === 0 ? "GO" : startCountdown}
+            </div>
+            <div className="mt-4 text-sm font-mono text-slate-300">카운트다운이 끝나면 테스트가 시작됩니다</div>
           </div>
         </div>
       )}
