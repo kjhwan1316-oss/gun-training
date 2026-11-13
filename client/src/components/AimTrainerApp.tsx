@@ -1223,6 +1223,15 @@ export default function AimTrainerApp() {
 
         {/* Top Right Quick Bar */}
         <div className="flex items-center gap-3">
+          {!isPlaying && (
+            <a
+              href="/intro"
+              className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-slate-900/80 border border-cyan-500/30 text-xs font-semibold text-cyan-200 hover:text-white hover:border-cyan-400 items-center gap-1.5 transition-all shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> 소개 페이지
+            </a>
+          )}
+
           {isPlaying && (
             <button
               onClick={() => {
